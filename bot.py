@@ -77,7 +77,7 @@ async def process_language(message: types.Message, state: FSMContext):
         return
 
     await Form.full_name.set()
-    await message.answer("✏️ Введите ваше *имя и фамилию*:", reply_markup=ReplyKeyboardRemove())
+    await message.answer("✏️ Введите ваше *имя и фамилию* Например\n Иван Иванов\n", reply_markup=ReplyKeyboardRemove())
 
 # Получение имени
 @dp.message_handler(state=Form.full_name)
