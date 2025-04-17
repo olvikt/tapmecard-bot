@@ -7,6 +7,7 @@ from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 from aiogram.utils.executor import start_webhook
 from dotenv import load_dotenv
+from texts import texts
 
 # Загрузка .env
 load_dotenv()
@@ -24,7 +25,7 @@ WEBAPP_PORT = int(os.environ.get("PORT", 5000))
 logging.basicConfig(level=logging.INFO)
 
 # Инициализация
-bot = Bot(token=BOT_TOKEN, parse_mode=types.ParseMode.MARKDOWN_V2)
+bot = Bot(token=BOT_TOKEN, parse_mode=types.ParseMode.HTML)
 storage = MemoryStorage()
 dp = Dispatcher(bot, storage=storage)
 
@@ -37,27 +38,17 @@ class Form(StatesGroup):
 # /start
 @dp.message_handler(commands='start', state='*')
 async def cmd_start(message: types.Message, state: FSMContext):
-    await message.answer(
-        "<b>👋 Приветствуем в Tapme Card!</b>\n\n"
-        "Следуйте инструкции бота и создайте свою стильную визитку всего за <b>2 минуты</b>.\n\n"
-        "<b>Для создания визитки</b> выполните 3 простых шага:\n"
-        "1. Укажите своё имя и фото;\n"
-        "2. Добавьте контакты для связи;\n"
-        "3. Расскажите о бизнесе и прикрепите ссылку на сайт или презентацию.\n\n"
-        "🔗 <b>Посмотрите пример:</b> <a href='https://fcard.me/alex'>fcard.me/alex</a>",
-        parse_mode="HTML"
-    )
+    await message.answer(texts["start"]["ru"], parse_mode="HTML")
 
     lang_keyboard = ReplyKeyboardMarkup(resize_keyboard=True)
     lang_keyboard.add(
-        KeyboardButton("🇷🇺 Русский"),
-        KeyboardButton("🇺🇦 Українська"),
-        KeyboardButton("🇬🇧 English")
+        KeyboardButton("\ud83c\uddf7\ud83c\uddfa Русский"),
+        KeyboardButton("\ud83c\uddfa\ud83c\udde6 Українська"),
+        KeyboardButton("\ud83c\uddec\ud83c\udde7 English")
     )
 
     await Form.choose_language.set()
-    await message.answer("🌐 <b>Выберите язык визитки:</b>", reply_markup=lang_keyboard, parse_mode="HTML")
-
+    await message.answer(texts["choose_language"]["ru"], reply_markup=lang_keyboard, parse_mode="HTML")
 
 # Выбор языка
 @dp.message_handler(state=Form.choose_language)
@@ -65,27 +56,30 @@ async def process_language(message: types.Message, state: FSMContext):
     lang_input = message.text.strip().lower()
 
     if "рус" in lang_input:
-        await state.update_data(language='ru')
-        await message.answer("Вы выбрали *Русский язык*\.")
+        lang = 'ru'
     elif "укр" in lang_input:
-        await state.update_data(language='uk')
-        await message.answer("Ви обрали *Українську мову*\.")
+        lang = 'uk'
     elif "eng" in lang_input or "english" in lang_input:
-        await state.update_data(language='en')
-        await message.answer("You selected *English* language\.")
+        lang = 'en'
     else:
-        await message.answer("Пожалуйста, выберите язык, нажав на одну из кнопок\.")
+        await message.answer(texts["invalid_language"]["ru"])
         return
 
+    await state.update_data(language=lang)
+    await message.answer(texts["language_chosen"][lang])
+
     await Form.full_name.set()
-    await message.answer("✏️ Введите ваше *имя и фамилию* Например\n Иван Иванов\n", reply_markup=ReplyKeyboardRemove())
+    await message.answer(texts["ask_full_name"][lang], reply_markup=ReplyKeyboardRemove())
 
 # Получение имени
 @dp.message_handler(state=Form.full_name)
 async def process_full_name(message: types.Message, state: FSMContext):
     await state.update_data(full_name=message.text)
+    data = await state.get_data()
+    lang = data.get('language', 'ru')
+
     await Form.photo.set()
-    await message.answer("📸 Теперь отправьте ваше *фото*, которое будет на визитке:")
+    await message.answer(texts["ask_photo"][lang])
 
 # Получение фото
 @dp.message_handler(content_types=types.ContentType.PHOTO, state=Form.photo)
@@ -95,9 +89,10 @@ async def process_photo(message: types.Message, state: FSMContext):
 
     data = await state.get_data()
     name = data.get("full_name")
+    lang = data.get("language", 'ru')
 
     await message.answer(
-        f"✅ Имя: *{name}*\n✅ Фото получено\.\n\n🚧 Далее — добавим контакты \(в следующем шаге\)\.",
+        texts["confirm_name_photo"][lang].format(name=name),
         parse_mode="MarkdownV2"
     )
 
