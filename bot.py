@@ -29,7 +29,7 @@ async def send_welcome(message: types.Message):
         "3. Рассказать о Вашем бизнесе, прикрепив ссылку на сайт, презентацию или вашу реферальную ссылку.\n\n"
         "Посмотрите, как может выглядеть ваша визитка: [Пример визитки](https://fcard.me/alex)"
     )
-    await message.answer(welcome_text, parse_mode="Markdown")
+  
 
 # Webhook-приложение
 async def on_startup(dp):
