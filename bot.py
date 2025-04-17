@@ -8,7 +8,7 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemo
 from aiogram.utils.executor import start_webhook
 from dotenv import load_dotenv
 
-# Загрузка переменных среды
+# Загрузка .env
 load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 RENDER_EXTERNAL_URL = os.getenv("RENDER_EXTERNAL_URL")
@@ -23,7 +23,7 @@ WEBAPP_PORT = int(os.environ.get("PORT", 5000))
 # Логгирование
 logging.basicConfig(level=logging.INFO)
 
-# Инициализация бота и диспетчера
+# Инициализация
 bot = Bot(token=BOT_TOKEN, parse_mode=types.ParseMode.MARKDOWN_V2)
 storage = MemoryStorage()
 dp = Dispatcher(bot, storage=storage)
@@ -31,10 +31,13 @@ dp = Dispatcher(bot, storage=storage)
 # Состояния
 class Form(StatesGroup):
     choose_language = State()
+    full_name = State()
+    photo = State()
 
 # /start
 @dp.message_handler(commands='start', state='*')
 async def cmd_start(message: types.Message, state: FSMContext):
+    await state.finish()  # сбросим предыдущее состояние
     await message.answer(
         "*👋 Приветствуем в Tapme Card\!* \n"
         "Следуйте инструкции бота и создайте свою стильную визитку всего за *2 минуты*\.\n\n"
@@ -55,32 +58,58 @@ async def cmd_start(message: types.Message, state: FSMContext):
     await Form.choose_language.set()
     await message.answer("🌐 *Выберите язык визитки:*", reply_markup=lang_keyboard)
 
-# Обработка языка
+# Выбор языка
 @dp.message_handler(state=Form.choose_language)
 async def process_language(message: types.Message, state: FSMContext):
     lang_input = message.text.strip().lower()
 
     if "рус" in lang_input:
         await state.update_data(language='ru')
-        await message.answer("Вы выбрали *Русский язык*\.", parse_mode="MarkdownV2")
+        await message.answer("Вы выбрали *Русский язык*\.")
     elif "укр" in lang_input:
         await state.update_data(language='uk')
-        await message.answer("Ви обрали *Українську мову*\.", parse_mode="MarkdownV2")
+        await message.answer("Ви обрали *Українську мову*\.")
     elif "eng" in lang_input or "english" in lang_input:
         await state.update_data(language='en')
-        await message.answer("You selected *English* language\.", parse_mode="MarkdownV2")
+        await message.answer("You selected *English* language\.")
     else:
-        await message.answer("Пожалуйста, выберите язык, нажав на одну из кнопок\.", parse_mode="MarkdownV2")
+        await message.answer("Пожалуйста, выберите язык, нажав на одну из кнопок\.")
         return
 
-    await message.answer("🚀 Продолжаем создание визитки... \(следующий шаг будет позже\)", reply_markup=ReplyKeyboardRemove())
+    await Form.full_name.set()
+    await message.answer("✏️ Введите ваше *имя и фамилию*:", reply_markup=ReplyKeyboardRemove())
 
-# Webhook запуск
+# Получение имени
+@dp.message_handler(state=Form.full_name)
+async def process_full_name(message: types.Message, state: FSMContext):
+    await state.update_data(full_name=message.text)
+    await Form.photo.set()
+    await message.answer("📸 Теперь отправьте ваше *фото*, которое будет на визитке:")
+
+# Получение фото
+@dp.message_handler(content_types=types.ContentType.PHOTO, state=Form.photo)
+async def process_photo(message: types.Message, state: FSMContext):
+    photo_id = message.photo[-1].file_id
+    await state.update_data(photo=photo_id)
+
+    data = await state.get_data()
+    name = data.get("full_name")
+
+    await message.answer(
+        f"✅ Имя: *{name}*\n✅ Фото получено\.\n\n🚧 Далее — добавим контакты \(в следующем шаге\)\.",
+        parse_mode="MarkdownV2"
+    )
+
+    await state.finish()
+
+# Запуск webhook
 async def on_startup(dp):
     await bot.set_webhook(WEBHOOK_URL)
+    logging.info("Webhook установлен.")
 
 async def on_shutdown(dp):
     await bot.delete_webhook()
+    logging.info("Webhook удалён.")
 
 if __name__ == '__main__':
     start_webhook(
