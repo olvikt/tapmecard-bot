@@ -38,17 +38,15 @@ class Form(StatesGroup):
 # /start
 @dp.message_handler(commands='start', state='*')
 async def cmd_start(message: types.Message, state: FSMContext):
-    await message.answer(texts["start"]["ru"], parse_mode="HTML")
-
     lang_keyboard = ReplyKeyboardMarkup(resize_keyboard=True)
     lang_keyboard.add(
-        KeyboardButton("\ud83c\uddf7\ud83c\uddfa Русский"),
-        KeyboardButton("\ud83c\uddfa\ud83c\udde6 Українська"),
-        KeyboardButton("\ud83c\uddec\ud83c\udde7 English")
+        KeyboardButton("\U0001F1F7\U0001F1FA Русский"),
+        KeyboardButton("\U0001F1FA\U0001F1E6 Українська"),
+        KeyboardButton("\U0001F1EC\U0001F1E7 English")
     )
 
     await Form.choose_language.set()
-    await message.answer(texts["choose_language"]["ru"], reply_markup=lang_keyboard, parse_mode="HTML")
+    await message.answer("🌐 <b>Выберите язык визитки:</b>", reply_markup=lang_keyboard)
 
 # Выбор языка
 @dp.message_handler(state=Form.choose_language)
@@ -62,24 +60,22 @@ async def process_language(message: types.Message, state: FSMContext):
     elif "eng" in lang_input or "english" in lang_input:
         lang = 'en'
     else:
-        await message.answer(texts["invalid_language"]["ru"])
+        await message.answer(texts['invalid_language']['ru'])
         return
 
     await state.update_data(language=lang)
-    await message.answer(texts["language_chosen"][lang])
-
+    await message.answer(texts['language_selected'][lang])
     await Form.full_name.set()
-    await message.answer(texts["ask_full_name"][lang], reply_markup=ReplyKeyboardRemove())
+    await message.answer(texts['ask_name'][lang], reply_markup=ReplyKeyboardRemove())
 
 # Получение имени
 @dp.message_handler(state=Form.full_name)
 async def process_full_name(message: types.Message, state: FSMContext):
     await state.update_data(full_name=message.text)
     data = await state.get_data()
-    lang = data.get('language', 'ru')
-
+    lang = data.get("language", "ru")
     await Form.photo.set()
-    await message.answer(texts["ask_photo"][lang])
+    await message.answer(texts['ask_photo'][lang])
 
 # Получение фото
 @dp.message_handler(content_types=types.ContentType.PHOTO, state=Form.photo)
@@ -89,10 +85,10 @@ async def process_photo(message: types.Message, state: FSMContext):
 
     data = await state.get_data()
     name = data.get("full_name")
-    lang = data.get("language", 'ru')
+    lang = data.get("language", "ru")
 
     await message.answer(
-        texts["confirm_name_photo"][lang].format(name=name),
+        texts['confirm'][lang].format(name=name),
         parse_mode="MarkdownV2"
     )
 
