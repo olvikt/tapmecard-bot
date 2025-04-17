@@ -1,20 +1,30 @@
 import logging
 import os
 from aiogram import Bot, Dispatcher, types
-from aiogram.dispatcher import FSMContext
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
+from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
-from aiogram.utils import executor
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
+from aiogram.utils.executor import start_webhook
 from dotenv import load_dotenv
 
+# Загрузка переменных среды
 load_dotenv()
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+RENDER_EXTERNAL_URL = os.getenv("RENDER_EXTERNAL_URL")
+
+# Webhook настройки
+WEBHOOK_PATH = "/webhook"
+WEBHOOK_URL = f"{RENDER_EXTERNAL_URL}{WEBHOOK_PATH}"
+
+WEBAPP_HOST = "0.0.0.0"
+WEBAPP_PORT = int(os.environ.get("PORT", 5000))
 
 # Логгирование
 logging.basicConfig(level=logging.INFO)
 
 # Инициализация бота и диспетчера
-bot = Bot(token=os.getenv("BOT_TOKEN"), parse_mode="MarkdownV2")
+bot = Bot(token=BOT_TOKEN, parse_mode=types.ParseMode.MARKDOWN_V2)
 storage = MemoryStorage()
 dp = Dispatcher(bot, storage=storage)
 
@@ -22,7 +32,7 @@ dp = Dispatcher(bot, storage=storage)
 class Form(StatesGroup):
     choose_language = State()
 
-# Команда /start
+# /start
 @dp.message_handler(commands='start', state='*')
 async def cmd_start(message: types.Message, state: FSMContext):
     await message.answer(
@@ -35,7 +45,6 @@ async def cmd_start(message: types.Message, state: FSMContext):
         "🔗 *Посмотрите пример*: [fcard\.me/alex](https://fcard.me/alex)"
     )
 
-    # Клавиатура для выбора языка
     lang_keyboard = ReplyKeyboardMarkup(resize_keyboard=True)
     lang_keyboard.add(
         KeyboardButton("🇷🇺 Русский"),
@@ -46,7 +55,7 @@ async def cmd_start(message: types.Message, state: FSMContext):
     await Form.choose_language.set()
     await message.answer("🌐 *Выберите язык визитки:*", reply_markup=lang_keyboard)
 
-# Обработка выбора языка
+# Обработка языка
 @dp.message_handler(state=Form.choose_language)
 async def process_language(message: types.Message, state: FSMContext):
     lang_input = message.text.strip().lower()
@@ -64,9 +73,21 @@ async def process_language(message: types.Message, state: FSMContext):
         await message.answer("Пожалуйста, выберите язык, нажав на одну из кнопок\.", parse_mode="MarkdownV2")
         return
 
-    # Удалим клавиатуру
-    await message.answer("🚀 Продолжаем создание визитки... \(следующий шаг будет позже\)", reply_markup=types.ReplyKeyboardRemove())
+    await message.answer("🚀 Продолжаем создание визитки... \(следующий шаг будет позже\)", reply_markup=ReplyKeyboardRemove())
 
-# Запуск
+# Webhook запуск
+async def on_startup(dp):
+    await bot.set_webhook(WEBHOOK_URL)
+
+async def on_shutdown(dp):
+    await bot.delete_webhook()
+
 if __name__ == '__main__':
-    executor.start_polling(dp, skip_updates=True)
+    start_webhook(
+        dispatcher=dp,
+        webhook_path=WEBHOOK_PATH,
+        on_startup=on_startup,
+        on_shutdown=on_shutdown,
+        host=WEBAPP_HOST,
+        port=WEBAPP_PORT,
+    )
