@@ -1,5 +1,3 @@
-# texts.py
-
 texts = {
     'start': {
         'ru': (
