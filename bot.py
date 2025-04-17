@@ -5,6 +5,7 @@ from aiogram.dispatcher import FSMContext
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.utils import executor
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -34,34 +35,37 @@ async def cmd_start(message: types.Message, state: FSMContext):
         "🔗 *Посмотрите пример*: [fcard\.me/alex](https://fcard.me/alex)"
     )
 
-    await Form.choose_language.set()
-    await message.answer(
-        "🌐 *Выберите язык визитки:*\n"
-        "1\\. Русский\n"
-        "2\\. Українська\n"
-        "3\\. English"
+    # Клавиатура для выбора языка
+    lang_keyboard = ReplyKeyboardMarkup(resize_keyboard=True)
+    lang_keyboard.add(
+        KeyboardButton("🇷🇺 Русский"),
+        KeyboardButton("🇺🇦 Українська"),
+        KeyboardButton("🇬🇧 English")
     )
+
+    await Form.choose_language.set()
+    await message.answer("🌐 *Выберите язык визитки:*", reply_markup=lang_keyboard)
 
 # Обработка выбора языка
 @dp.message_handler(state=Form.choose_language)
 async def process_language(message: types.Message, state: FSMContext):
-    lang = message.text.strip().lower()
+    lang_input = message.text.strip().lower()
 
-    if lang in ['1', 'русский', 'ru']:
+    if "рус" in lang_input:
         await state.update_data(language='ru')
         await message.answer("Вы выбрали *Русский язык*\.", parse_mode="MarkdownV2")
-    elif lang in ['2', 'українська', 'uk']:
+    elif "укр" in lang_input:
         await state.update_data(language='uk')
         await message.answer("Ви обрали *Українську мову*\.", parse_mode="MarkdownV2")
-    elif lang in ['3', 'english', 'en']:
+    elif "eng" in lang_input or "english" in lang_input:
         await state.update_data(language='en')
         await message.answer("You selected *English* language\.", parse_mode="MarkdownV2")
     else:
-        await message.answer("Пожалуйста, выберите язык, отправив *1*, *2* или *3*\.", parse_mode="MarkdownV2")
+        await message.answer("Пожалуйста, выберите язык, нажав на одну из кнопок\.", parse_mode="MarkdownV2")
         return
 
-    # Здесь будет следующий шаг анкеты
-    await message.answer("🚀 Продолжаем создание визитки... \(следующий шаг будет позже\)")
+    # Удалим клавиатуру
+    await message.answer("🚀 Продолжаем создание визитки... \(следующий шаг будет позже\)", reply_markup=types.ReplyKeyboardRemove())
 
 # Запуск
 if __name__ == '__main__':
